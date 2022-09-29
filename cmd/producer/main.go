@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/rand"
 
 	"github.com/google/uuid"
@@ -50,12 +49,11 @@ func main() {
 		panic(err)
 	}
 	defer ch.Close()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 100000; i++ {
 		order := GenerateOrders()
 		err := Notify(ch, order)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(order)
 	}
 }

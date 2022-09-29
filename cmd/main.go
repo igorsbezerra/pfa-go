@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/igorsbezerra/pfa-go/internal/order/infra/database"
 	"github.com/igorsbezerra/pfa-go/internal/order/usecase"
@@ -12,6 +13,8 @@ import (
 )
 
 func main() {
+	maxWorkers := 3
+	wg := sync.WaitGroup{}
 	db, err := sql.Open("mysql", "root:root@tcp(mysql:3306)/orders")
 	if err != nil {
 		panic(err)
@@ -26,7 +29,13 @@ func main() {
 	defer ch.Close()
 	output := make(chan amqp.Delivery)
 	go rabbitmq.Consume(ch, output)
-	worker(output, uc, 1)
+
+	wg.Add(maxWorkers)
+	for i := 0; i < maxWorkers; i++ {
+		defer wg.Done()
+		go worker(output, uc, i)
+	}
+	wg.Wait()
 }
 
 func worker(deliveryMessage <-chan amqp.Delivery, uc *usecase.CalculateFinalPriceUseCase, workerId int) {
@@ -42,5 +51,6 @@ func worker(deliveryMessage <-chan amqp.Delivery, uc *usecase.CalculateFinalPric
 			fmt.Println("Error execute usecase", err)
 		}
 		msg.Ack(false)
+		fmt.Println("Worker", workerId, "processed order", input.ID)
 	}
 }
